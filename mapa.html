@@ -1,90 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>Exercicis 1, 2 i 3: Mapa amb marcadors i informació de dades obertes de Barcelona</title>
-    <link rel="stylesheet" href="https://openlayers.org/en/v6.5.0/css/ol.css" type="text/css">
-    <script src="https://openlayers.org/en/v6.5.0/build/ol.js"></script>
-    <style>
-        .popup {
-            background: white;
-            padding: 10px;
-            min-width: 200px;
-            max-width: 300px;
-        }
-    </style>
+	<title>Mapa de biblioteques a Barcelona</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/leaflet/1.0.0-beta.2/leaflet.css" />
+	<script src="https://cdn.jsdelivr.net/leaflet/1.0.0-beta.2/leaflet.js"></script>
 </head>
 <body>
-    <div id="map" class="map"></div>
+	<div id="map" style="height: 600px;"></div>
+	<script>
+		// Inicialitzem el mapa a Barcelona
+		var map = L.map('map').setView([41.3870154, 2.1700471], 12);
 
-    <script>
-        var map = new ol.Map({
-            target: 'map',
-            view: new ol.View({
-                center: ol.proj.fromLonLat([2.1734, 41.3851]),
-                zoom: 13
-            }),
-            layers: [
-                new ol.layer.Tile({
-                    source: new ol.source.OSM()
-                })
-            ]
-        });
+		// Afegim la capa de mapa
+		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+			maxZoom: 18,
+			attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors'
+		}).addTo(map);
 
-        var request = new XMLHttpRequest();
-        request.open('GET', 'https://barcelonadadescultura.bcn.cat/dades-obertes/api/action/datastore_search?resource_id=219b1ee8-ba0c-4327-8337-a78c1de8ddcc&limit=100', true);
-        request.onreadystatechange = function() {
-            if (this.readyState === 4 && this.status === 200) {
-                var data = JSON.parse(this.responseText);
-                var instalacions = data.result.records;
+		// Fem una crida a la API de biblioteques de Barcelona
+		fetch("https://barcelonadadescultura.bcn.cat/api/v1/biblioteques?$format=json")
+			.then(response => response.json())
+			.then(data => {
+				// Iterem a través de les dades de la API
+				data.value.forEach(biblioteca => {
+					// Creem un marcador per a cada biblioteca
+					var marker = L.marker([biblioteca.geometry.coordinates[1], biblioteca.geometry.coordinates[0]]).addTo(map);
 
-                for (var i = 0; i < instalacions.length; i++) {
-                    var instalacio = instalacions[i];
-
-                    var marker = new ol.Feature({
-                        geometry: new ol.geom.Point(
-                            ol.proj.fromLonLat([parseFloat(instalacio['geo_longitud']), parseFloat(instalacio['geo_latitud'])])
-                        ),
-                        name: instalacio['nom'],
-                        adreca: instalacio['adreca'],
-                        telefon: instalacio['telefon']
-                    });
-
-                    var markerStyle = new ol.style.Style({
-                        image: new ol.style.Icon({
-                            src: 'https://openlayers.org/en/v6.5.0/examples/data/icon.png'
-                        })
-                    });
-
-                    marker.setStyle(markerStyle);
-
-                    var markerLayer = new ol.layer.Vector({
-                        source: new ol.source.Vector({
-                            features: [marker]
-                        })
-                    });
-
-                    map.addLayer(markerLayer);
-
-                    marker.on('click', function(evt) {
-                        var name = evt.target.get('name');
-                        var adreca = evt.target.get('adreca');
-                        var telefon = evt.target.get('telefon');
-
-                        var popupContent = '<div class="popup"><h3>' + name + '</h3><p><strong>Adreça:</strong> ' + adreca + '</p><p><strong>Telèfon:</strong> ' + telefon + '</p></div>';
-
-                        var popup = new ol.Overlay({
-                            element: document.createElement('div')
-                        });
-
-                        popup.getElement().innerHTML = popupContent;
-                        popup.setPosition(evt.coordinate);
-                        map.addOverlay(popup);
-                    });
-                }
-            }
-        };
-        request.send();
-    </script>
+					// Afegim informació al marcador
+					marker.bindPopup("<b>" + biblioteca.properties.NOM + "</b><br>" + biblioteca.properties.ADRECA);
+				});
+			});
+	</script>
 </body>
 </html>
